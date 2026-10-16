@@ -1,0 +1,7 @@
+numpy
+pillow
+PySide6-Essentials
+scikit-learn
+scipy
+torch
+torchvision
