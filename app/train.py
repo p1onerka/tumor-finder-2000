@@ -145,7 +145,7 @@ class HideAndSeek:
                     continue
                 y0 = row * cell_h
                 x0 = col * cell_w
-                hidden[:, y0: y0 + cell_h, x0: x0 + cell_w] = 0
+                hidden[:, y0 : y0 + cell_h, x0 : x0 + cell_w] = 0
         return hidden
 
 
@@ -225,9 +225,9 @@ def remap_torchvision(state: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]
     mapped: dict[str, torch.Tensor] = {}
     for key, value in state.items():
         if key.startswith("conv1."):
-            mapped["stem.0." + key[len("conv1."):]] = value
+            mapped["stem.0." + key[len("conv1.") :]] = value
         elif key.startswith("bn1."):
-            mapped["stem.1." + key[len("bn1."):]] = value
+            mapped["stem.1." + key[len("bn1.") :]] = value
         else:
             mapped[key] = value
     return mapped
