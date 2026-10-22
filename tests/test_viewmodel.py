@@ -88,7 +88,9 @@ def test_search_while_busy_does_not_start_another(tmp_path) -> None:
         ("pituitary", "опухоль гипофиза"),
     ],
 )
-def test_search_shows_a_tumor_label_and_the_highlight(tmp_path, class_name, label) -> None:
+def test_search_shows_a_tumor_label_and_the_highlight(
+    tmp_path, class_name, label
+) -> None:
     path = tmp_path / "slice.png"
     _save(path, (1, 2, 3))
     found = Image.new("RGB", (4, 4), (9, 0, 0))
@@ -113,7 +115,7 @@ def test_search_keeps_the_slice_when_the_highlight_is_not_an_image(tmp_path) -> 
     path = tmp_path / "slice.png"
     _save(path, (3, 3, 3))
 
-    def classify():
+    def classify(*_args):
         return "not-an-image", "glioma"
 
     viewmodel = _viewmodel(classify)

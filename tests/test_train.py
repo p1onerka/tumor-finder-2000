@@ -31,8 +31,12 @@ def _touch(path: Path) -> None:
     path.write_bytes(b"")
 
 
-def _cpu_loader(xs: torch.Tensor, ys: torch.Tensor, batch_size: int, shuffle: bool = False):
-    return make_loader(TensorDataset(xs, ys), batch_size, shuffle, 0, torch.device("cpu"))
+def _cpu_loader(
+    xs: torch.Tensor, ys: torch.Tensor, batch_size: int, shuffle: bool = False
+):
+    return make_loader(
+        TensorDataset(xs, ys), batch_size, shuffle, 0, torch.device("cpu")
+    )
 
 
 @pytest.mark.parametrize(
@@ -66,13 +70,32 @@ def test_class_names_from_rejects_an_empty_directory(tmp_path) -> None:
 
 
 def test_collect_samples_keeps_image_suffixes_and_labels(tmp_path) -> None:
-    for name in ("a.jpg", "b.PNG", "c.jpeg", "d.bmp", "e.tif", "f.tiff", "g.webp", "skip.gif", "notes.txt"):
+    for name in (
+        "a.jpg",
+        "b.PNG",
+        "c.jpeg",
+        "d.bmp",
+        "e.tif",
+        "f.tiff",
+        "g.webp",
+        "skip.gif",
+        "notes.txt",
+    ):
         _touch(tmp_path / "glioma" / name)
     _touch(tmp_path / "notumor" / "n.jpg")
 
     samples = collect_samples(tmp_path, ["notumor", "glioma"], limit=0, seed=1)
     by_name = {path.name: label for path, label in samples}
-    assert set(by_name) == {"a.jpg", "b.PNG", "c.jpeg", "d.bmp", "e.tif", "f.tiff", "g.webp", "n.jpg"}
+    assert set(by_name) == {
+        "a.jpg",
+        "b.PNG",
+        "c.jpeg",
+        "d.bmp",
+        "e.tif",
+        "f.tiff",
+        "g.webp",
+        "n.jpg",
+    }
     assert by_name["n.jpg"] == 0
     assert by_name["a.jpg"] == 1
     again = collect_samples(tmp_path, ["notumor", "glioma"], limit=0, seed=1)
@@ -116,7 +139,9 @@ def test_hide_and_seek_zeroes_only_the_chosen_cells(monkeypatch) -> None:
 @pytest.mark.parametrize("class_name", ["notumor", "No_Tumor", "no-tumor"])
 def test_highlight_class_returns_a_copy_for_a_clean_slice(class_name: str) -> None:
     image = Image.new("RGB", (4, 4), (5, 6, 7))
-    highlighted = highlight_class(None, ["notumor"], None, image, torch.device("cpu"), class_name, 0.5)
+    highlighted = highlight_class(
+        None, ["notumor"], None, image, torch.device("cpu"), class_name, 0.5
+    )
     assert highlighted is not image
     assert highlighted.tobytes() == image.tobytes()
     highlighted.putpixel((0, 0), (0, 0, 0))
@@ -126,7 +151,15 @@ def test_highlight_class_returns_a_copy_for_a_clean_slice(class_name: str) -> No
 def test_highlight_class_rejects_an_unknown_tumor_name() -> None:
     image = Image.new("RGB", (4, 4))
     with pytest.raises(SystemExit, match="нет класса glioma"):
-        highlight_class(None, ["meningioma", "notumor"], None, image, torch.device("cpu"), "glioma", 0.5)
+        highlight_class(
+            None,
+            ["meningioma", "notumor"],
+            None,
+            image,
+            torch.device("cpu"),
+            "glioma",
+            0.5,
+        )
 
 
 def test_highlight_class_returns_an_image_of_the_same_size() -> None:
@@ -178,8 +211,15 @@ def test_classify_image_requires_an_existing_file(tmp_path) -> None:
         (1, 1, -0.1, "hide-prob"),
     ],
 )
-def test_train_model_rejects_invalid_arguments(epochs, batch_size, hide_prob, text) -> None:
-    args = argparse.Namespace(epochs=epochs, batch_size=batch_size, hide_prob=hide_prob, checkpoint=Path("unused.pt"))
+def test_train_model_rejects_invalid_arguments(
+    epochs, batch_size, hide_prob, text
+) -> None:
+    args = argparse.Namespace(
+        epochs=epochs,
+        batch_size=batch_size,
+        hide_prob=hide_prob,
+        checkpoint=Path("unused.pt"),
+    )
     with pytest.raises(SystemExit, match=text):
         train_model(args)
 

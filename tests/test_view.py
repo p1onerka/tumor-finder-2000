@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import os
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
 from PIL import Image
 from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import QApplication
 
 from app.view import ImagePane, TumorView
 from app.viewmodel import TumorViewModel
 
+# QWidget aborts the process if it is created before QApplication.
+_qapp = QApplication.instance() or QApplication([])
 
 
 def test_image_pane_starts_empty_and_ignores_a_null_pixmap() -> None:
@@ -21,7 +28,9 @@ def test_choose_file_loads_the_selected_slice(tmp_path, monkeypatch) -> None:
     path = tmp_path / "slice.png"
     Image.new("RGB", (3, 3), (4, 5, 6)).save(path)
     view = TumorView(TumorViewModel())
-    monkeypatch.setattr("app.view.QFileDialog.getOpenFileName", lambda *args: (str(path), ""))
+    monkeypatch.setattr(
+        "app.view.QFileDialog.getOpenFileName", lambda *args: (str(path), "")
+    )
     view._choose_file()
     assert view.viewmodel.image is not None
     assert view.viewmodel.image.getpixel((0, 0)) == (4, 5, 6)
