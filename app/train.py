@@ -382,11 +382,6 @@ def _layer_cam(activation: torch.Tensor, gradient: torch.Tensor) -> np.ndarray:
 def class_layer_cams(
     model: CamNet, images: torch.Tensor, class_index: int
 ) -> tuple[np.ndarray, np.ndarray]:
-    """LayerCAM layer3 и layer4 для одного снимка.
-
-    layer4 — та же грубая сетка 7×7, что и обычная карта класса.
-    layer3 вдвое плотнее и держит край небольшой опухоли.
-    """
     saved: dict[str, torch.Tensor] = {}
     handles = []
     layers = (("fine", model.layer3), ("coarse", model.layer4))
@@ -445,11 +440,6 @@ def activation_mask(
     head: np.ndarray,
     threshold: float,
 ) -> tuple[np.ndarray, tuple[int, int, int, int] | None, float]:
-    """Область layer3 вокруг пика, который подтверждает и layer4.
-
-    Пик произведения отбрасывает яркий, но чужой очаг: глаз или сосуд,
-    на котором мелкая карта вспыхнула, а карта класса — нет.
-    """
     empty = np.zeros((height, width), dtype=bool)
     fine_up = _upsample_unit(fine, height, width)
     coarse_up = _upsample_unit(coarse, height, width)
