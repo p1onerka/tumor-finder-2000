@@ -78,13 +78,19 @@ def class_names_from(train_dir: Path) -> list[str]:
     return names
 
 
-def collect_samples(root: Path, classes: list[str], limit: int, seed: int) -> list[tuple[Path, int]]:
+def collect_samples(
+    root: Path, classes: list[str], limit: int, seed: int
+) -> list[tuple[Path, int]]:
     grouped: dict[int, list[Path]] = defaultdict(list)
     for label, name in enumerate(classes):
         folder = root / name
         if not folder.is_dir():
             raise SystemExit(f"Нет директории класса: {folder}")
-        files = [path for path in folder.iterdir() if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES]
+        files = [
+            path
+            for path in folder.iterdir()
+            if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES
+        ]
         if not files:
             raise SystemExit(f"Нет снимков в {folder}")
         grouped[label] = files
@@ -143,14 +149,18 @@ class HideAndSeek:
         return hidden
 
 
-def build_transform(image_size: int, train: bool, hide_grids: tuple[int, ...], hide_prob: float) -> transforms.Compose:
+def build_transform(
+    image_size: int, train: bool, hide_grids: tuple[int, ...], hide_prob: float
+) -> transforms.Compose:
     steps: list = [transforms.Resize((image_size, image_size))]
     if train:
         steps.extend(
             [
                 transforms.RandomHorizontalFlip(),
                 transforms.RandomRotation(15),
-                transforms.RandomAffine(degrees=0, translate=(0.05, 0.05), scale=(0.9, 1.1)),
+                transforms.RandomAffine(
+                    degrees=0, translate=(0.05, 0.05), scale=(0.9, 1.1)
+                ),
                 transforms.ColorJitter(brightness=0.2, contrast=0.2),
             ]
         )
@@ -166,7 +176,9 @@ def build_transform(image_size: int, train: bool, hide_grids: tuple[int, ...], h
 
 
 class SliceDataset(Dataset):
-    def __init__(self, samples: list[tuple[Path, int]], transform: transforms.Compose) -> None:
+    def __init__(
+        self, samples: list[tuple[Path, int]], transform: transforms.Compose
+    ) -> None:
         self.samples = samples
         self.transform = transform
 
@@ -182,7 +194,9 @@ class CamNet(nn.Module):
     def __init__(self, n_classes: int) -> None:
         super().__init__()
         backbone = models.resnet18(weights=None)
-        self.stem = nn.Sequential(backbone.conv1, backbone.bn1, backbone.relu, backbone.maxpool)
+        self.stem = nn.Sequential(
+            backbone.conv1, backbone.bn1, backbone.relu, backbone.maxpool
+        )
         self.layer1 = backbone.layer1
         self.layer2 = backbone.layer2
         self.layer3 = backbone.layer3
@@ -200,7 +214,9 @@ class CamNet(nn.Module):
         maps = self.features(images)
         return self.fc(maps.mean(dim=(2, 3)))
 
-    def class_activation(self, maps: torch.Tensor, class_index: torch.Tensor) -> torch.Tensor:
+    def class_activation(
+        self, maps: torch.Tensor, class_index: torch.Tensor
+    ) -> torch.Tensor:
         weight = self.fc.weight.index_select(0, class_index)
         return torch.relu((maps * weight[:, :, None, None]).sum(dim=1))
 
@@ -257,7 +273,9 @@ def set_backbone_trainable(model: nn.Module, trainable: bool) -> None:
         parameter.requires_grad = trainable or name.startswith("fc.")
 
 
-def apply_train_mode(model: nn.Module, training: bool, update_backbone_bn: bool) -> None:
+def apply_train_mode(
+    model: nn.Module, training: bool, update_backbone_bn: bool
+) -> None:
     model.train(training)
     if training and not update_backbone_bn:
         for module in model.modules():
@@ -305,7 +323,9 @@ def run_epoch(
     return total_loss / seen, correct / seen, macro_f1
 
 
-def load_model(checkpoint: Path, device: torch.device) -> tuple[CamNet, list[str], int, transforms.Compose]:
+def load_model(
+    checkpoint: Path, device: torch.device
+) -> tuple[CamNet, list[str], int, transforms.Compose]:
     if not checkpoint.is_file():
         raise SystemExit(f"Не найдено классификатора {checkpoint}")
     saved = torch.load(checkpoint, map_location="cpu", weights_only=False)
@@ -319,7 +339,9 @@ def load_model(checkpoint: Path, device: torch.device) -> tuple[CamNet, list[str
     model = CamNet(len(classes))
     loaded = load_matching(model, state)
     if "fc.weight" not in loaded:
-        raise SystemExit(f"Классификатор {checkpoint} не содержит необходимой информации")
+        raise SystemExit(
+            f"Классификатор {checkpoint} не содержит необходимой информации"
+        )
     model.to(device)
     model.eval()
     transform = build_transform(image_size, False, HIDE_GRIDS, 0.0)
@@ -346,7 +368,9 @@ def _upsample_unit(cam: np.ndarray, height: int, width: int) -> np.ndarray:
         return np.zeros((height, width), dtype=np.float32)
     unit = (cam - float(cam.min())) / span
     tensor = torch.from_numpy(unit)[None, None]
-    return F.interpolate(tensor, size=(height, width), mode="bilinear", align_corners=False)[0, 0].numpy()
+    return F.interpolate(
+        tensor, size=(height, width), mode="bilinear", align_corners=False
+    )[0, 0].numpy()
 
 
 def _layer_cam(activation: torch.Tensor, gradient: torch.Tensor) -> np.ndarray:
@@ -355,7 +379,9 @@ def _layer_cam(activation: torch.Tensor, gradient: torch.Tensor) -> np.ndarray:
     return torch.relu(weighted.sum(dim=0)).detach().cpu().numpy()
 
 
-def class_layer_cams(model: CamNet, images: torch.Tensor, class_index: int) -> tuple[np.ndarray, np.ndarray]:
+def class_layer_cams(
+    model: CamNet, images: torch.Tensor, class_index: int
+) -> tuple[np.ndarray, np.ndarray]:
     """LayerCAM layer3 и layer4 для одного снимка.
 
     layer4 — та же грубая сетка 7×7, что и обычная карта класса.
@@ -365,6 +391,7 @@ def class_layer_cams(model: CamNet, images: torch.Tensor, class_index: int) -> t
     handles = []
     layers = (("fine", model.layer3), ("coarse", model.layer4))
     for name, layer in layers:
+
         def remember(module, inputs, output, name=name):
             output.retain_grad()
             saved[name] = output
@@ -437,7 +464,13 @@ def activation_mask(
         if mask is not None:
             break
     if mask is None:
-        mask = _component(_upsample_unit(score, height, width), head, threshold, int(peak_row), int(peak_col))
+        mask = _component(
+            _upsample_unit(score, height, width),
+            head,
+            threshold,
+            int(peak_row),
+            int(peak_col),
+        )
     if mask is None or not mask.any():
         return empty, None, 0.0
     rows, cols = np.nonzero(mask)
@@ -446,7 +479,9 @@ def activation_mask(
     return mask, box, fraction
 
 
-def overlay(image: Image.Image, mask: np.ndarray, box: tuple[int, int, int, int] | None) -> Image.Image:
+def overlay(
+    image: Image.Image, mask: np.ndarray, box: tuple[int, int, int, int] | None
+) -> Image.Image:
     base = np.asarray(image.convert("RGB"), dtype=np.float32)
     if mask.any():
         soft = np.clip(ndi.gaussian_filter(mask.astype(np.float32), 0.6), 0, 1)
@@ -493,12 +528,16 @@ def highlight_class(
         class_index = classes.index(class_name)
     except ValueError as exc:
         known = ", ".join(classes)
-        raise SystemExit(f"В модели подсветки нет класса {class_name}. Есть: {known}.") from exc
+        raise SystemExit(
+            f"В модели подсветки нет класса {class_name}. Есть: {known}."
+        ) from exc
     batch = transform(display).unsqueeze(0).to(device)
     fine, coarse = class_layer_cams(model, batch, class_index)
     gray = np.asarray(display.convert("L"), dtype=np.float32) / 255.0
     width, height = display.size
-    mask, box, _fraction = activation_mask(fine, coarse, width, height, head_mask(gray), threshold)
+    mask, box, _fraction = activation_mask(
+        fine, coarse, width, height, head_mask(gray), threshold
+    )
     return overlay(display, mask, box)
 
 
@@ -511,11 +550,17 @@ def classify_image(
         raise SystemExit(f"Нет файла: {image_path}")
     device = pick_device()
     display = percentile_normalize(image_path)
-    classifier, class_names, _image_size, transform = load_model(classifier_checkpoint, device)
-    class_name, _probability = predict_class(classifier, class_names, transform, display, device)
+    classifier, class_names, _image_size, transform = load_model(
+        classifier_checkpoint, device
+    )
+    class_name, _probability = predict_class(
+        classifier, class_names, transform, display, device
+    )
     if not is_tumor_class(class_name):
         return display, class_name
-    localizer, localizer_classes, _image_size, localizer_transform = load_model(localizer_checkpoint, device)
+    localizer, localizer_classes, _image_size, localizer_transform = load_model(
+        localizer_checkpoint, device
+    )
     highlighted = highlight_class(
         localizer,
         localizer_classes,
@@ -580,13 +625,19 @@ def train_model(args: argparse.Namespace) -> TrainMetrics:
     )
     assert_train_only([train_samples[i] for i in train_idx], TRAIN_DIR)
 
-    train_ds = SliceDataset(train_samples, build_transform(IMAGE_SIZE, True, HIDE_GRIDS, args.hide_prob))
+    train_ds = SliceDataset(
+        train_samples, build_transform(IMAGE_SIZE, True, HIDE_GRIDS, args.hide_prob)
+    )
     eval_transform = build_transform(IMAGE_SIZE, False, HIDE_GRIDS, 0.0)
     val_ds = SliceDataset(train_samples, eval_transform)
     test_ds = SliceDataset(test_samples, eval_transform)
 
-    train_loader = make_loader(Subset(train_ds, train_idx.tolist()), args.batch_size, True, WORKERS, device)
-    val_loader = make_loader(Subset(val_ds, val_idx.tolist()), args.batch_size, False, WORKERS, device)
+    train_loader = make_loader(
+        Subset(train_ds, train_idx.tolist()), args.batch_size, True, WORKERS, device
+    )
+    val_loader = make_loader(
+        Subset(val_ds, val_idx.tolist()), args.batch_size, False, WORKERS, device
+    )
     test_loader = make_loader(test_ds, args.batch_size, False, WORKERS, device)
 
     model = CamNet(len(classes)).to(device)
@@ -607,9 +658,15 @@ def train_model(args: argparse.Namespace) -> TrainMetrics:
         head_only = epoch == 1
         set_backbone_trainable(model, trainable=not head_only)
         if head_only:
-            optimizer = torch.optim.AdamW(model.fc.parameters(), lr=1e-3, weight_decay=1e-4)
+            optimizer = torch.optim.AdamW(
+                model.fc.parameters(), lr=1e-3, weight_decay=1e-4
+            )
         else:
-            backbone = [parameter for name, parameter in model.named_parameters() if not name.startswith("fc.")]
+            backbone = [
+                parameter
+                for name, parameter in model.named_parameters()
+                if not name.startswith("fc.")
+            ]
             optimizer = torch.optim.AdamW(
                 [
                     {"params": backbone, "lr": 1e-4},
@@ -619,9 +676,16 @@ def train_model(args: argparse.Namespace) -> TrainMetrics:
             )
 
         train_loss, train_acc, train_f1 = run_epoch(
-            model, train_loader, criterion, optimizer, device, update_backbone_bn=not head_only
+            model,
+            train_loader,
+            criterion,
+            optimizer,
+            device,
+            update_backbone_bn=not head_only,
         )
-        val_loss, val_acc, val_f1 = run_epoch(model, val_loader, criterion, None, device, update_backbone_bn=False)
+        val_loss, val_acc, val_f1 = run_epoch(
+            model, val_loader, criterion, None, device, update_backbone_bn=False
+        )
         print(
             f"Эпоха {epoch}/{args.epochs}  "
             f"train loss {train_loss:.3f} acc {train_acc:.3f} macro-F1 {train_f1:.3f}  "

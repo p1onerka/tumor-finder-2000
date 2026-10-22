@@ -105,7 +105,6 @@ class ImagePane(QLabel):
 
     def set_image(self, pixmap: QPixmap | None) -> None:
         self._source = pixmap if pixmap is not None and not pixmap.isNull() else None
-        self.setText("" if self._source is not None else "Снимок не выбран")
         self._rescale()
 
     def resizeEvent(self, event) -> None:
@@ -121,8 +120,11 @@ class ImagePane(QLabel):
 
     def _rescale(self) -> None:
         if self._source is None:
+            # setPixmap clears the label text, so the placeholder is restored after it.
             self.setPixmap(QPixmap())
+            self.setText("Снимок не выбран")
             return
+        self.setText("")
         area = self.contentsRect().size()
         if area.width() < 2 or area.height() < 2:
             return
@@ -204,10 +206,14 @@ class TumorView(QWidget):
         self.search_button.setEnabled(not viewmodel.busy)
         self.search_button.setVisible(viewmodel.search_visible)
 
-        self.image_pane.set_image(None if viewmodel.image is None else _pixmap(viewmodel.image))
+        self.image_pane.set_image(
+            None if viewmodel.image is None else _pixmap(viewmodel.image)
+        )
 
         self.message_label.setText(viewmodel.message)
-        self.message_label.setProperty("filled", "true" if viewmodel.message else "false")
+        self.message_label.setProperty(
+            "filled", "true" if viewmodel.message else "false"
+        )
         self.message_label.style().unpolish(self.message_label)
         self.message_label.style().polish(self.message_label)
 
@@ -215,5 +221,7 @@ class TumorView(QWidget):
 def _pixmap(image: Image.Image) -> QPixmap:
     rgb = image.convert("RGB")
     buffer = rgb.tobytes("raw", "RGB")
-    qimage = QImage(buffer, rgb.width, rgb.height, rgb.width * 3, QImage.Format.Format_RGB888)
+    qimage = QImage(
+        buffer, rgb.width, rgb.height, rgb.width * 3, QImage.Format.Format_RGB888
+    )
     return QPixmap.fromImage(qimage.copy())
