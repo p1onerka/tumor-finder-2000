@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import os
-
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-
 from PIL import Image
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QApplication
 
 from app.view import ImagePane, TumorView
 from app.viewmodel import TumorViewModel
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 # QWidget aborts the process if it is created before QApplication.
 _qapp = QApplication.instance() or QApplication([])
