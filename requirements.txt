@@ -1,6 +1,7 @@
 numpy
 pillow
 PySide6-Essentials
+pytest
 scikit-learn
 scipy
 torch

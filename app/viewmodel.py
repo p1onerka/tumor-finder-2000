@@ -6,7 +6,12 @@ from pathlib import Path
 
 from PIL import Image
 
-from app.highlight import classify_image, is_tumor_class
+from app.train import (
+    CLASSIFIER_CHECKPOINT,
+    LOCALIZER_CHECKPOINT,
+    classify_image,
+    is_tumor_class,
+)
 
 TUMOR_LABELS = {
     "glioma": "глиома",
@@ -14,7 +19,7 @@ TUMOR_LABELS = {
     "pituitary": "опухоль гипофиза",
 }
 
-Classify = Callable[[Path, Path], tuple[Image.Image, str]]
+Classify = Callable[[Path, Path, Path], tuple[Image.Image, str]]
 Schedule = Callable[[Callable[[], None]], None]
 Runner = Callable[[Callable[[], None]], None]
 
@@ -22,12 +27,14 @@ Runner = Callable[[Callable[[], None]], None]
 class TumorViewModel:
     def __init__(
         self,
-        checkpoint: Path = Path("runs/best.pt"),
+        checkpoint: Path = CLASSIFIER_CHECKPOINT,
+        localizer_checkpoint: Path = LOCALIZER_CHECKPOINT,
         classify: Classify = classify_image,
         schedule: Schedule | None = None,
         runner: Runner | None = None,
     ) -> None:
         self._checkpoint = checkpoint
+        self._localizer_checkpoint = localizer_checkpoint
         self._classify = classify
         self._schedule = schedule or (lambda fn: fn())
         self._runner = runner or self._start_thread
@@ -76,7 +83,9 @@ class TumorViewModel:
 
     def _run_classify(self, path: Path) -> tuple[str, ...]:
         try:
-            image, class_name = self._classify(path, self._checkpoint)
+            image, class_name = self._classify(
+                path, self._checkpoint, self._localizer_checkpoint
+            )
         except SystemExit as exc:
             return ("error", str(exc) or "Не удалось обработать снимок")
         except Exception as exc:
